@@ -1,34 +1,20 @@
+// 1. Added the exact ID from your provided Google Sheet URL
+const SPREADSHEET_ID = '1_3r-eRoJKzeS985_7Bc1Sruv28q1WOsRstFo_K5a2-E'; 
 const SHEET_NAME = 'Orders';
+
 const HEADER_ROW = [
-  'Order ID',
-  'Customer name',
-  'Product',
-  'Size',
-  'Delivery address',
-  'Delivery charge paid status',
-  'Order Price',
-  'Order date',
-  'Additional accessories',
-  'Package ready',
-  'Out for delivery',
-  'Order status',
-  'Delivery ID',
-  'Delivery status link',
-  'Order delivered date',
-  'Customer no',
-  'Note'
+  'Order ID', 'Customer name', 'Product', 'Size', 'Delivery address',
+  'Delivery charge paid status', 'Order Price', 'Order date',
+  'Additional accessories', 'Package ready', 'Out for delivery',
+  'Order status', 'Delivery ID', 'Delivery status link',
+  'Order delivered date', 'Customer no', 'Note'
 ];
 
 const FIELD_MAP = {
-  name: 'Customer name',
-  mobile: 'Customer no',
-  address: 'Delivery address',
-  shoeModel: 'Product',
-  size: 'Size',
-  price: 'Order Price',
+  name: 'Customer name', mobile: 'Customer no', address: 'Delivery address',
+  shoeModel: 'Product', size: 'Size', price: 'Order Price',
   deliveryChargePaid: 'Delivery charge paid status',
-  accessories: 'Additional accessories',
-  orderDate: 'Order date'
+  accessories: 'Additional accessories', orderDate: 'Order date'
 };
 
 function doGet() {
@@ -46,7 +32,7 @@ function doPost(e) {
     const row = buildOrderRow(sheet, payload);
     const blankRow = findFirstBlankRow(sheet);
 
-    if (blankRow > 0) {
+    if (blankRow > 0 && blankRow <= sheet.getMaxRows()) {
       sheet.getRange(blankRow, 1, 1, row.length).setValues([row]);
     } else {
       sheet.appendRow(row);
@@ -70,8 +56,10 @@ function doPost(e) {
 }
 
 function getOrCreateOrdersSheet() {
-  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  // 2. FIXED: Use openById instead of getActiveSpreadsheet()
+  const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
   let sheet = spreadsheet.getSheetByName(SHEET_NAME);
+  console.log(sheet, SHEET_NAME);
 
   if (!sheet) {
     sheet = spreadsheet.insertSheet(SHEET_NAME);
@@ -105,7 +93,6 @@ function findFirstBlankRow(sheet) {
       return rowIndex + 1;
     }
   }
-
   return sheet.getLastRow() + 1;
 }
 
@@ -155,7 +142,14 @@ function buildOrderRow(sheet, payload) {
 }
 
 function generateOrderId(sheet) {
-  const values = sheet.getRange('A2:A').getValues();
+  const lastRow = sheet.getLastRow();
+  
+  // 3. FIXED: Prevent crash if the sheet only has headers
+  if (lastRow < 2) {
+    return 'ORD-0001'; 
+  }
+
+  const values = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
   let highest = 0;
 
   values.forEach((row) => {
