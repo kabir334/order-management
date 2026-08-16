@@ -3,7 +3,7 @@ const APP_CONFIG = {
   LOGIN_PASSWORD: 'order123',
   COOKIE_NAME: 'order_management_auth',
   COOKIE_DAYS: 7,
-  SHEET_WEB_APP_URL: 'PASTE_YOUR_DEPLOYED_WEB_APP_URL_HERE',
+  SHEET_WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbx4geownZAl5p18UAMNblXbLs3zbCWEdOVIfba0nIf4kq7bBwuXhzCsdm5SMf-NjX9zZg/exec',
 };
 
 const DEFAULT_FIELD_SEQUENCE = ['name', 'mobile', 'address', 'shoeModel', 'size', 'price'];
