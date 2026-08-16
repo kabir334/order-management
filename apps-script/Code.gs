@@ -88,8 +88,26 @@ function jsonResponse(data, statusCode) {
 }
 
 function getOrCreateOrdersSheet() {
-  // 2. FIXED: Use openById instead of getActiveSpreadsheet()
-  const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let spreadsheet = null;
+
+  try {
+    spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+  } catch (error) {
+    console.error('openById failed for spreadsheet', error && error.message ? error.message : error);
+  }
+
+  if (!spreadsheet) {
+    try {
+      spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    } catch (error) {
+      console.error('getActiveSpreadsheet failed', error && error.message ? error.message : error);
+    }
+  }
+
+  if (!spreadsheet) {
+    throw new Error('Unable to open the Google Sheet. Check the spreadsheet ID and script permissions.');
+  }
+
   let sheet = spreadsheet.getSheetByName(SHEET_NAME);
   console.log(sheet, SHEET_NAME);
 

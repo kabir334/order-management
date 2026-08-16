@@ -3,11 +3,13 @@ const APP_CONFIG = {
   LOGIN_PASSWORD: 'order123',
   COOKIE_NAME: 'order_management_auth',
   COOKIE_DAYS: 7,
-  SHEET_WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbx54_VWdIjDuMxed2FAURoyjSYE3Zm-MP0jMlq7BJem-TXnMcDRGhp_NASZ-53ZHCqwgg/exec',
+  SHEET_WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbx4geownZAl5p18UAMNblXbLs3zbCWEdOVIfba0nIf4kq7bBwuXhzCsdm5SMf-NjX9zZg/exec',
 };
 
+const DEFAULT_FIELD_SEQUENCE = ['name', 'mobile', 'address', 'shoeModel', 'size', 'price'];
+
 const UTILS = {
-  FIELD_ORDER: ['name', 'mobile', 'address', 'shoeModel', 'size', 'price'],
+  FIELD_ORDER: [...DEFAULT_FIELD_SEQUENCE],
 
   FIELD_OPTIONS: [
     { key: 'name', label: 'Name' },
@@ -16,6 +18,9 @@ const UTILS = {
     { key: 'shoeModel', label: 'Shoe model' },
     { key: 'size', label: 'Size' },
     { key: 'price', label: 'Price' },
+    { key: 'deliveryChargePaid', label: 'Delivery charge paid' },
+    { key: 'accessories', label: 'Additional accessories' },
+    { key: 'orderDate', label: 'Order date' },
   ],
 
   FIELD_DEFINITIONS: {
@@ -137,38 +142,25 @@ const UTILS = {
       .filter(Boolean);
 
     if (!lines.length) {
+      state.formRows = buildDefaultFormRows(parsed);
       return parsed;
     }
 
-    const fallbackQueue = [...UTILS.FIELD_ORDER];
+    lines.forEach((line, index) => {
+      const defaultFieldKey = DEFAULT_FIELD_SEQUENCE[index % DEFAULT_FIELD_SEQUENCE.length] || 'name';
+      const explicitMatch = line.match(/^([^:\n]+?)\s*[:\-]\s*(.+)$/);
+      const fieldKey = explicitMatch ? UTILS.detectFieldKey(explicitMatch[1].toLowerCase()) : defaultFieldKey;
+      const value = explicitMatch ? UTILS.normalizeText(explicitMatch[2]) : line;
+      const targetField = (fieldKey && UTILS.FIELD_ORDER.includes(fieldKey)) ? fieldKey : defaultFieldKey;
 
-    lines.forEach((line) => {
-      const normalizedLine = UTILS.normalizeText(line);
-      if (!normalizedLine) return;
-
-      const explicitMatch = normalizedLine.match(/^([^:\n]+?)\s*[:\-]\s*(.+)$/);
-      const fieldKey = explicitMatch ? UTILS.detectFieldKey(explicitMatch[1].toLowerCase()) : null;
-      const value = explicitMatch ? UTILS.normalizeText(explicitMatch[2]) : normalizedLine;
-
-      if (fieldKey && UTILS.FIELD_ORDER.includes(fieldKey)) {
-        parsed[fieldKey] = value;
-        const queueIndex = fallbackQueue.indexOf(fieldKey);
-        if (queueIndex >= 0) fallbackQueue.splice(queueIndex, 1);
-        return;
-      }
-
-      const nextKey = fallbackQueue.shift();
-      if (nextKey) {
-        parsed[nextKey] = value;
-      }
+      parsed[targetField] = value;
     });
 
-    if (!parsed.name && lines[0]) parsed.name = lines[0];
-    if (!parsed.mobile && lines[1]) parsed.mobile = lines[1];
-    if (!parsed.address && lines[2]) parsed.address = lines[2];
-    if (!parsed.shoeModel && lines[3]) parsed.shoeModel = lines[3];
-    if (!parsed.size && lines[4]) parsed.size = lines[4];
-    if (!parsed.price && lines[5]) parsed.price = lines[5];
+    state.formRows = lines.map((line, index) => ({
+      id: `parsed-${index}`,
+      fieldKey: DEFAULT_FIELD_SEQUENCE[index % DEFAULT_FIELD_SEQUENCE.length] || 'name',
+      value: line,
+    }));
 
     return parsed;
   },
@@ -236,7 +228,19 @@ function UTILS_GET_TODAY_ISO() {
 const state = {
   auth: false,
   parsedFields: UTILS.buildDefaultOrder(),
+  formRows: [],
 };
+
+function buildDefaultFormRows(data = UTILS.buildDefaultOrder(), rowCount = DEFAULT_FIELD_SEQUENCE.length) {
+  return Array.from({ length: rowCount }, (_, index) => {
+    const fieldKey = DEFAULT_FIELD_SEQUENCE[index % DEFAULT_FIELD_SEQUENCE.length] || 'name';
+    return {
+      id: `row-${index}`,
+      fieldKey,
+      value: data[fieldKey] ?? '',
+    };
+  });
+}
 
 function showScreen(screenId) {
   document.querySelectorAll('.screen').forEach((screen) => {
@@ -294,10 +298,9 @@ function renderFields(data) {
   const fieldGrid = document.getElementById('fieldGrid');
   if (!fieldGrid) return;
 
-  const baseFields = UTILS.FIELD_ORDER.map((fieldKey) => ({
-    fieldKey,
-    value: data[fieldKey] ?? '',
-  }));
+  const rows = state.formRows.length
+    ? state.formRows
+    : buildDefaultFormRows(data);
 
   const extraFields = [
     'deliveryChargePaid',
@@ -305,96 +308,96 @@ function renderFields(data) {
     'orderDate',
   ];
 
-  const rows = [
-    ...baseFields.map(({ fieldKey, value }) => {
-      const definition = UTILS.FIELD_DEFINITIONS[fieldKey];
-      const editorMarkup = definition.type === 'textarea'
-        ? `<textarea class="field-editor" id="field-${fieldKey}" placeholder="${definition.placeholder}">${escapeHtml(value)}</textarea>`
-        : `<input class="field-editor" id="field-${fieldKey}" type="${definition.type}" value="${escapeHtml(value)}" placeholder="${definition.placeholder}" />`;
+  const renderedRows = rows.map(({ fieldKey, value }, index) => {
+    const definition = UTILS.FIELD_DEFINITIONS[fieldKey] || UTILS.FIELD_DEFINITIONS.name;
+    const editorMarkup = definition.type === 'textarea'
+      ? `<textarea class="field-editor" id="field-${index}" placeholder="${definition.placeholder}">${escapeHtml(value)}</textarea>`
+      : `<input class="field-editor" id="field-${index}" type="${definition.type}" value="${escapeHtml(value)}" placeholder="${definition.placeholder}" />`;
 
-      const optionsMarkup = UTILS.FIELD_OPTIONS.map((option) => `
-        <option value="${option.key}" ${option.key === fieldKey ? 'selected' : ''}>${option.label}</option>
-      `).join('');
+    const optionsMarkup = UTILS.FIELD_OPTIONS.map((option) => `
+      <option value="${option.key}" ${option.key === fieldKey ? 'selected' : ''}>${option.label}</option>
+    `).join('');
 
-      return `
-        <div class="field-row dynamic-field">
-          <div class="field-header">
-            <label class="field-select-wrap" aria-label="Select field">
-              <select class="field-select" data-field-key="${fieldKey}">
-                ${optionsMarkup}
-              </select>
-            </label>
-          </div>
-          <div class="field-value">
-            ${editorMarkup}
-          </div>
+    return `
+      <div class="field-row dynamic-field">
+        <div class="field-header">
+          <label class="field-select-wrap" aria-label="Select field">
+            <select class="field-select" data-field-key="${fieldKey}">
+              ${optionsMarkup}
+            </select>
+          </label>
         </div>
-      `;
-    }),
-    ...extraFields.map((fieldKey) => {
-      const definition = UTILS.FIELD_DEFINITIONS[fieldKey];
-      if (!definition) return '';
+        <div class="field-value">
+          ${editorMarkup}
+        </div>
+      </div>
+    `;
+  });
 
-      if (fieldKey === 'deliveryChargePaid') {
-        return `
-          <div class="field-row">
-            <div class="field-header">
-              <strong>${definition.label}</strong>
-            </div>
-            <div class="field-value">
-              <div class="toggle-wrap">
-                <label class="switch" aria-label="${definition.label}">
-                  <input id="deliveryChargePaid" type="checkbox" ${data.deliveryChargePaid ? 'checked' : ''} />
-                  <span class="slider"></span>
-                </label>
-              </div>
-            </div>
-          </div>
-        `;
-      }
+  const optionalRows = extraFields.map((fieldKey) => {
+    const definition = UTILS.FIELD_DEFINITIONS[fieldKey];
+    if (!definition) return '';
 
-      if (fieldKey === 'accessories') {
-        const accessories = UTILS.ACCESSORY_OPTIONS.map((option) => {
-          const checked = data.accessories.includes(option) ? 'checked' : '';
-          return `
-            <label class="check-option">
-              <input type="checkbox" value="${option}" ${checked} />
-              <span>${option}</span>
-            </label>
-          `;
-        }).join('');
-
-        return `
-          <div class="field-row">
-            <div class="field-header">
-              <strong>${definition.label}</strong>
-            </div>
-            <div class="field-value">
-              <div class="accessories-box">${accessories}</div>
-            </div>
-          </div>
-        `;
-      }
-
-      const commonValue = data[fieldKey] ?? UTILS_GET_TODAY_ISO();
+    if (fieldKey === 'deliveryChargePaid') {
       return `
         <div class="field-row">
           <div class="field-header">
             <strong>${definition.label}</strong>
           </div>
           <div class="field-value">
-            <input id="field-orderDate" type="date" value="${commonValue || UTILS_GET_TODAY_ISO()}" />
+            <div class="toggle-wrap">
+              <label class="switch" aria-label="${definition.label}">
+                <input id="deliveryChargePaid" type="checkbox" ${data.deliveryChargePaid ? 'checked' : ''} />
+                <span class="slider"></span>
+              </label>
+            </div>
           </div>
         </div>
       `;
-    }),
-  ];
+    }
 
-  fieldGrid.innerHTML = rows.join('');
+    if (fieldKey === 'accessories') {
+      const accessories = UTILS.ACCESSORY_OPTIONS.map((option) => {
+        const checked = (data.accessories || []).includes(option) ? 'checked' : '';
+        return `
+          <label class="check-option">
+            <input type="checkbox" value="${option}" ${checked} />
+            <span>${option}</span>
+          </label>
+        `;
+      }).join('');
+
+      return `
+        <div class="field-row">
+          <div class="field-header">
+            <strong>${definition.label}</strong>
+          </div>
+          <div class="field-value">
+            <div class="accessories-box">${accessories}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    const commonValue = data[fieldKey] ?? UTILS_GET_TODAY_ISO();
+    return `
+      <div class="field-row">
+        <div class="field-header">
+          <strong>${definition.label}</strong>
+        </div>
+        <div class="field-value">
+          <input id="field-orderDate" type="date" value="${commonValue || UTILS_GET_TODAY_ISO()}" />
+        </div>
+      </div>
+    `;
+  });
+
+  fieldGrid.innerHTML = [...renderedRows, ...optionalRows].join('');
 }
 
 function collectFormValues() {
   const data = UTILS.buildDefaultOrder();
+  const seenFields = new Set();
 
   const mappedRows = Array.from(document.querySelectorAll('.dynamic-field'));
   mappedRows.forEach((row) => {
@@ -404,7 +407,14 @@ function collectFormValues() {
 
     const fieldKey = select.value;
     const value = editor.value.trim();
-    if (fieldKey && Object.prototype.hasOwnProperty.call(data, fieldKey)) {
+
+    if (!fieldKey) return;
+    if (seenFields.has(fieldKey)) {
+      throw new Error(`Duplicate field selected: ${fieldKey}. Each field can only be mapped once.`);
+    }
+    seenFields.add(fieldKey);
+
+    if (Object.prototype.hasOwnProperty.call(data, fieldKey)) {
       data[fieldKey] = value;
     }
   });
@@ -425,6 +435,7 @@ function handleParseOrder() {
   const message = document.getElementById('orderInput').value;
   const parsed = UTILS.parseOrderMessage(message);
   state.parsedFields = parsed;
+  state.formRows = state.formRows.length ? state.formRows : buildDefaultFormRows(parsed);
   renderFields(parsed);
   showToast('Order details parsed successfully.', 'success');
 }
@@ -437,12 +448,13 @@ async function submitOrder(event) {
     return;
   }
 
-  const payload = collectFormValues();
+  let payload;
   const submitButton = document.getElementById('submitOrderBtn');
   submitButton.disabled = true;
   submitButton.textContent = 'Submitting...';
 
   try {
+    payload = collectFormValues();
     const response = await fetch(APP_CONFIG.SHEET_WEB_APP_URL, {
       method: 'POST',
       mode: 'cors',
@@ -504,6 +516,7 @@ function init() {
     logoutButton.addEventListener('click', () => setAuthenticated(false));
   }
 
+  state.formRows = buildDefaultFormRows(state.parsedFields);
   renderFields(state.parsedFields);
 
   if (savedAuth === 'true') {
