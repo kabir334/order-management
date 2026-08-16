@@ -1,0 +1,31 @@
+Google sheet link = "https://docs.google.com/spreadsheets/d/1_3r-eRoJKzeS985_7Bc1Sruv28q1WOsRstFo_K5a2-E/edit?gid=204875660#gid=204875660"
+sample message = "name: nafijul islam
+phone:01910186978
+Address: Shoni akhra Nurpur 1 number road matrikunjonibash 1333 Dhaka1236
+Size:41
+shoe name : supreme milk red 
+pp: 2550"
+
+default order of fields in the ui = 
+ name
+ mobile
+ address
+ shoe model
+ Size
+ price
+
+
+the order submitting form shoould have some extra optional fields ... 
+1 is delivary charge paid , toggle button
+2nd isadditional accessories, checkbox fields for these -> lace, socks, bag, box
+3rd is order date, default value today
+
+ Google sheet table header sayng the columns:
+ Order ID	Customer name	Product	Size	Delivary address	Delivary charge paid status	Order Price	Order date	Additional accessories 	Package ready	Out for delivary	Order status	Delivary ID	Delivary status link	Order delivered date	Customer no	Note
+
+ (serially from A to Q), you get the corresponding columns names ... 
+ here Size	Delivary charge paid status	Additional accessories are dropdown columns ... 
+
+keep every thing as a utility const so that we can easilyt update/modify main tain them.
+
+give me full path to deply and run and test the app. in md files
