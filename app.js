@@ -9,6 +9,15 @@ const APP_CONFIG = {
 const UTILS = {
   FIELD_ORDER: ['name', 'mobile', 'address', 'shoeModel', 'size', 'price'],
 
+  FIELD_OPTIONS: [
+    { key: 'name', label: 'Name' },
+    { key: 'mobile', label: 'Mobile' },
+    { key: 'address', label: 'Address' },
+    { key: 'shoeModel', label: 'Shoe model' },
+    { key: 'size', label: 'Size' },
+    { key: 'price', label: 'Price' },
+  ],
+
   FIELD_DEFINITIONS: {
     name: {
       label: 'Name',
@@ -121,86 +130,56 @@ const UTILS = {
 
   parseOrderMessage(message = '') {
     const parsed = UTILS.buildDefaultOrder();
-    const sanitized = UTILS.normalizeText(message);
+    const sourceText = String(message || '');
+    const lines = sourceText
+      .split(/\r?\n/)
+      .map((line) => UTILS.normalizeText(line))
+      .filter(Boolean);
 
-    if (!sanitized) {
+    if (!lines.length) {
       return parsed;
     }
 
-    const lines = sanitized.split(/\r?\n|(?<=\d)\s+(?=[A-Z])/);
+    const fallbackQueue = [...UTILS.FIELD_ORDER];
 
     lines.forEach((line) => {
-      const trimmedLine = UTILS.normalizeText(line);
-      if (!trimmedLine) return;
+      const normalizedLine = UTILS.normalizeText(line);
+      if (!normalizedLine) return;
 
-      const match = trimmedLine.match(/^(.+?)\s*:\s*(.+)$/);
-      if (!match) return;
+      const explicitMatch = normalizedLine.match(/^([^:\n]+?)\s*[:\-]\s*(.+)$/);
+      const fieldKey = explicitMatch ? UTILS.detectFieldKey(explicitMatch[1].toLowerCase()) : null;
+      const value = explicitMatch ? UTILS.normalizeText(explicitMatch[2]) : normalizedLine;
 
-      const rawKey = match[1].toLowerCase();
-      const value = UTILS.normalizeText(match[2]);
-      const normalizedKey = rawKey
-        .replace(/[^a-z0-9]+/g, ' ')
-        .trim();
-
-      const fieldKey = UTILS.detectFieldKey(normalizedKey);
-      if (!fieldKey) return;
-
-      if (fieldKey === 'name' || fieldKey === 'mobile' || fieldKey === 'address' || fieldKey === 'shoeModel' || fieldKey === 'size' || fieldKey === 'price') {
+      if (fieldKey && UTILS.FIELD_ORDER.includes(fieldKey)) {
         parsed[fieldKey] = value;
+        const queueIndex = fallbackQueue.indexOf(fieldKey);
+        if (queueIndex >= 0) fallbackQueue.splice(queueIndex, 1);
+        return;
       }
 
-      if (fieldKey === 'deliveryChargePaid') {
-        parsed.deliveryChargePaid = /paid|yes|y|done|collected/i.test(value);
-      }
-
-      if (fieldKey === 'accessories') {
-        parsed.accessories = UTILS.extractAccessories(value);
-      }
-
-      if (fieldKey === 'orderDate') {
-        parsed.orderDate = UTILS.normalizeDateInput(value) || parsed.orderDate;
+      const nextKey = fallbackQueue.shift();
+      if (nextKey) {
+        parsed[nextKey] = value;
       }
     });
 
-    if (!parsed.name && /\bname\b/i.test(sanitized)) {
-      const nameMatch = sanitized.match(/name\s*[:\-]\s*([^\n]+)/i);
-      if (nameMatch) parsed.name = UTILS.normalizeText(nameMatch[1]);
-    }
-
-    if (!parsed.mobile && /\bphone\b|\bmobile\b/i.test(sanitized)) {
-      const phoneMatch = sanitized.match(/(?:phone|mobile)\s*[:\-]\s*([^\n]+)/i);
-      if (phoneMatch) parsed.mobile = UTILS.normalizeText(phoneMatch[1]);
-    }
-
-    if (!parsed.address && /\baddress\b/i.test(sanitized)) {
-      const addressMatch = sanitized.match(/address\s*[:\-]\s*([^\n]+)/i);
-      if (addressMatch) parsed.address = UTILS.normalizeText(addressMatch[1]);
-    }
-
-    if (!parsed.shoeModel && /\bshoe\s*name\b|\bproduct\b|\bshoe model\b/i.test(sanitized)) {
-      const modelMatch = sanitized.match(/(?:shoe name|shoe model|product)\s*[:\-]\s*([^\n]+)/i);
-      if (modelMatch) parsed.shoeModel = UTILS.normalizeText(modelMatch[1]);
-    }
-
-    if (!parsed.size && /\bsize\b/i.test(sanitized)) {
-      const sizeMatch = sanitized.match(/size\s*[:\-]\s*([^\n]+)/i);
-      if (sizeMatch) parsed.size = UTILS.normalizeText(sizeMatch[1]);
-    }
-
-    if (!parsed.price && /\bpp\b|\bprice\b/i.test(sanitized)) {
-      const priceMatch = sanitized.match(/(?:pp|price)\s*[:\-]\s*([^\n]+)/i);
-      if (priceMatch) parsed.price = UTILS.normalizeText(priceMatch[1]);
-    }
+    if (!parsed.name && lines[0]) parsed.name = lines[0];
+    if (!parsed.mobile && lines[1]) parsed.mobile = lines[1];
+    if (!parsed.address && lines[2]) parsed.address = lines[2];
+    if (!parsed.shoeModel && lines[3]) parsed.shoeModel = lines[3];
+    if (!parsed.size && lines[4]) parsed.size = lines[4];
+    if (!parsed.price && lines[5]) parsed.price = lines[5];
 
     return parsed;
   },
 
   detectFieldKey(key) {
+    const cleanedKey = String(key || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
     const fieldPatterns = {
       name: ['name', 'customer name'],
-      mobile: ['phone', 'mobile', 'customer no', 'phone number', 'contact'],
-      address: ['address', 'delivery address', 'delivary address'],
-      shoeModel: ['shoe name', 'shoe model', 'product', 'model'],
+      mobile: ['phone', 'mobile', 'customer no', 'phone number', 'contact', 'email'],
+      address: ['address', 'delivery address', 'delivary address', 'company', 'location'],
+      shoeModel: ['shoe name', 'shoe model', 'product', 'model', 'description'],
       size: ['size'],
       price: ['price', 'pp', 'amount'],
       deliveryChargePaid: ['delivery charge paid', 'delivery charge', 'charge paid', 'paid status'],
@@ -209,7 +188,7 @@ const UTILS = {
     };
 
     for (const [fieldKey, patterns] of Object.entries(fieldPatterns)) {
-      if (patterns.some((pattern) => key === pattern || key.includes(pattern))) {
+      if (patterns.some((pattern) => cleanedKey === pattern || cleanedKey.includes(pattern))) {
         return fieldKey;
       }
     }
@@ -302,19 +281,57 @@ function handleLogin(event) {
   showToast('Invalid login details.', 'error');
 }
 
+function escapeHtml(value = '') {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function renderFields(data) {
   const fieldGrid = document.getElementById('fieldGrid');
   if (!fieldGrid) return;
 
-  const fields = [
-    ...UTILS.FIELD_ORDER,
+  const baseFields = UTILS.FIELD_ORDER.map((fieldKey) => ({
+    fieldKey,
+    value: data[fieldKey] ?? '',
+  }));
+
+  const extraFields = [
     'deliveryChargePaid',
     'accessories',
     'orderDate',
   ];
 
-  fieldGrid.innerHTML = fields
-    .map((fieldKey) => {
+  const rows = [
+    ...baseFields.map(({ fieldKey, value }) => {
+      const definition = UTILS.FIELD_DEFINITIONS[fieldKey];
+      const editorMarkup = definition.type === 'textarea'
+        ? `<textarea class="field-editor" id="field-${fieldKey}" placeholder="${definition.placeholder}">${escapeHtml(value)}</textarea>`
+        : `<input class="field-editor" id="field-${fieldKey}" type="${definition.type}" value="${escapeHtml(value)}" placeholder="${definition.placeholder}" />`;
+
+      const optionsMarkup = UTILS.FIELD_OPTIONS.map((option) => `
+        <option value="${option.key}" ${option.key === fieldKey ? 'selected' : ''}>${option.label}</option>
+      `).join('');
+
+      return `
+        <div class="field-row dynamic-field">
+          <div class="field-header">
+            <label class="field-select-wrap" aria-label="Select field">
+              <select class="field-select" data-field-key="${fieldKey}">
+                ${optionsMarkup}
+              </select>
+            </label>
+          </div>
+          <div class="field-value">
+            ${editorMarkup}
+          </div>
+        </div>
+      `;
+    }),
+    ...extraFields.map((fieldKey) => {
       const definition = UTILS.FIELD_DEFINITIONS[fieldKey];
       if (!definition) return '';
 
@@ -359,64 +376,43 @@ function renderFields(data) {
         `;
       }
 
-      const commonValue = data[fieldKey] ?? '';
-      const inputId = `field-${fieldKey}`;
-
-      if (definition.type === 'textarea') {
-        return `
-          <div class="field-row">
-            <div class="field-header">
-              <strong>${definition.label}</strong>
-            </div>
-            <div class="field-value">
-              <textarea id="${inputId}" placeholder="${definition.placeholder}">${commonValue}</textarea>
-            </div>
-          </div>
-        `;
-      }
-
-      if (definition.type === 'date') {
-        return `
-          <div class="field-row">
-            <div class="field-header">
-              <strong>${definition.label}</strong>
-            </div>
-            <div class="field-value">
-              <input id="${inputId}" type="date" value="${commonValue || UTILS_GET_TODAY_ISO()}" />
-            </div>
-          </div>
-        `;
-      }
-
+      const commonValue = data[fieldKey] ?? UTILS_GET_TODAY_ISO();
       return `
         <div class="field-row">
           <div class="field-header">
             <strong>${definition.label}</strong>
           </div>
           <div class="field-value">
-            <input id="${inputId}" type="${definition.type}" value="${commonValue}" placeholder="${definition.placeholder}" />
+            <input id="field-orderDate" type="date" value="${commonValue || UTILS_GET_TODAY_ISO()}" />
           </div>
         </div>
       `;
-    })
-    .join('');
+    }),
+  ];
+
+  fieldGrid.innerHTML = rows.join('');
 }
 
 function collectFormValues() {
   const data = UTILS.buildDefaultOrder();
 
-  UTILS.FIELD_ORDER.forEach((fieldKey) => {
-    const element = document.getElementById(`field-${fieldKey}`);
-    data[fieldKey] = element ? element.value.trim() : '';
+  const mappedRows = Array.from(document.querySelectorAll('.dynamic-field'));
+  mappedRows.forEach((row) => {
+    const select = row.querySelector('.field-select');
+    const editor = row.querySelector('.field-editor');
+    if (!select || !editor) return;
+
+    const fieldKey = select.value;
+    const value = editor.value.trim();
+    if (fieldKey && Object.prototype.hasOwnProperty.call(data, fieldKey)) {
+      data[fieldKey] = value;
+    }
   });
 
   const toggle = document.getElementById('deliveryChargePaid');
   data.deliveryChargePaid = !!(toggle && toggle.checked);
 
-  const checkedAccessories = Array.from(document.querySelectorAll('input[type="checkbox"][value]')).filter((input) => {
-    return input.closest('.check-option') && input.checked;
-  });
-
+  const checkedAccessories = Array.from(document.querySelectorAll('.check-option input[type="checkbox"]')).filter((input) => input.checked);
   data.accessories = checkedAccessories.map((input) => input.value);
 
   const orderDate = document.getElementById('field-orderDate');
@@ -451,12 +447,19 @@ async function submitOrder(event) {
       method: 'POST',
       mode: 'cors',
       headers: {
-        'Content-Type': 'text/plain;charset=utf-8',
+        'Content-Type': 'application/json; charset=utf-8',
       },
       body: JSON.stringify(payload),
     });
 
-    const result = await response.json();
+    const rawText = await response.text();
+    let result = null;
+
+    try {
+      result = rawText ? JSON.parse(rawText) : null;
+    } catch (parseError) {
+      result = { message: rawText || 'Unable to parse server response.' };
+    }
 
     if (!response.ok || !result || result.success === false) {
       throw new Error(result && result.message ? result.message : 'Unable to submit order.');
@@ -467,7 +470,11 @@ async function submitOrder(event) {
     state.parsedFields = UTILS.buildDefaultOrder();
     renderFields(state.parsedFields);
   } catch (error) {
-    showToast(error.message || 'Submission failed.', 'error');
+    const message = error && error.message === 'Failed to fetch'
+      ? 'CORS blocked: redeploy the Google Apps Script as a public web app and update SHEET_WEB_APP_URL in app.js.'
+      : (error && error.message) || 'Submission failed.';
+
+    showToast(message, 'error');
   } finally {
     submitButton.disabled = false;
     submitButton.textContent = 'Submit order';

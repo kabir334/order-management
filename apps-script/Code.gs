@@ -18,14 +18,12 @@ const FIELD_MAP = {
 };
 
 function doGet() {
-  return ContentService
-    .createTextOutput(JSON.stringify({ success: true, message: 'Order API ready.' }))
-    .setMimeType(ContentService.MimeType.JSON);
+  return jsonResponse({ success: true, message: 'Order API ready.' });
 }
 
 function doPost(e) {
   try {
-    const requestBody = e && e.postData && e.postData.contents ? JSON.parse(e.postData.contents) : {};
+    const requestBody = parsePostBody(e);
     const payload = requestBody || {};
 
     const sheet = getOrCreateOrdersSheet();
@@ -38,21 +36,55 @@ function doPost(e) {
       sheet.appendRow(row);
     }
 
-    return ContentService
-      .createTextOutput(JSON.stringify({
-        success: true,
-        orderId: row[0],
-        message: 'Order noted in the management sheet.'
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return jsonResponse({
+      success: true,
+      orderId: row[0],
+      message: 'Order noted in the management sheet.'
+    });
   } catch (error) {
-    return ContentService
-      .createTextOutput(JSON.stringify({
-        success: false,
-        message: error && error.message ? error.message : 'Unknown error while saving order.'
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return jsonResponse({
+      success: false,
+      message: error && error.message ? error.message : 'Unknown error while saving order.'
+    }, 500);
   }
+}
+
+function doOptions() {
+  return jsonResponse('', 200);
+}
+
+function parsePostBody(e) {
+  if (!e || !e.postData || !e.postData.contents) {
+    return {};
+  }
+
+  const rawBody = e.postData.contents;
+  if (!rawBody) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(rawBody);
+  } catch (error) {
+    return { raw: rawBody };
+  }
+}
+
+function jsonResponse(data, statusCode) {
+  const output = ContentService.createTextOutput(
+    typeof data === 'string' ? data : JSON.stringify(data)
+  );
+
+  output.setMimeType(ContentService.MimeType.JSON);
+  output.setHeader('Access-Control-Allow-Origin', '*');
+  output.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS, GET');
+  output.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (statusCode) {
+    output.setHeader('X-Status-Code', String(statusCode));
+  }
+
+  return output;
 }
 
 function getOrCreateOrdersSheet() {
