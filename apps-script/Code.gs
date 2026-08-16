@@ -45,12 +45,12 @@ function doPost(e) {
     return jsonResponse({
       success: false,
       message: error && error.message ? error.message : 'Unknown error while saving order.'
-    }, 500);
+    });
   }
 }
 
 function doOptions() {
-  return jsonResponse('', 200);
+  return ContentService.createTextOutput('');
 }
 
 function parsePostBody(e) {
@@ -70,21 +70,10 @@ function parsePostBody(e) {
   }
 }
 
-function jsonResponse(data, statusCode) {
-  const output = ContentService.createTextOutput(
-    typeof data === 'string' ? data : JSON.stringify(data)
-  );
-
-  output.setMimeType(ContentService.MimeType.JSON);
-  output.setHeader('Access-Control-Allow-Origin', '*');
-  output.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS, GET');
-  output.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-  if (statusCode) {
-    output.setHeader('X-Status-Code', String(statusCode));
-  }
-
-  return output;
+function jsonResponse(data) {
+  return ContentService
+    .createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 function getOrCreateOrdersSheet() {

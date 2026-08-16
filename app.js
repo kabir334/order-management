@@ -3,7 +3,7 @@ const APP_CONFIG = {
   LOGIN_PASSWORD: 'order123',
   COOKIE_NAME: 'order_management_auth',
   COOKIE_DAYS: 7,
-  SHEET_WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbx4geownZAl5p18UAMNblXbLs3zbCWEdOVIfba0nIf4kq7bBwuXhzCsdm5SMf-NjX9zZg/exec',
+  SHEET_WEB_APP_URL: 'PASTE_YOUR_DEPLOYED_WEB_APP_URL_HERE',
 };
 
 const DEFAULT_FIELD_SEQUENCE = ['name', 'mobile', 'address', 'shoeModel', 'size', 'price'];
@@ -443,8 +443,10 @@ function handleParseOrder() {
 async function submitOrder(event) {
   event.preventDefault();
 
-  if (!APP_CONFIG.SHEET_WEB_APP_URL) {
-    showToast('Set APP_CONFIG.SHEET_WEB_APP_URL before submitting.', 'error');
+  const isPlaceholderUrl = !APP_CONFIG.SHEET_WEB_APP_URL || APP_CONFIG.SHEET_WEB_APP_URL.includes('PASTE_YOUR_DEPLOYED_WEB_APP_URL_HERE');
+
+  if (isPlaceholderUrl) {
+    showToast('Update APP_CONFIG.SHEET_WEB_APP_URL to your deployed Google Apps Script Web App URL before submitting.', 'error');
     return;
   }
 
