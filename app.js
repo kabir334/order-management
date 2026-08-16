@@ -444,7 +444,7 @@ async function submitOrder(event) {
   event.preventDefault();
 
   const isPlaceholderUrl = !APP_CONFIG.SHEET_WEB_APP_URL || APP_CONFIG.SHEET_WEB_APP_URL.includes('PASTE_YOUR_DEPLOYED_WEB_APP_URL_HERE');
-
+  console.log('isPlaceholderUrl', isPlaceholderUrl, APP_CONFIG.SHEET_WEB_APP_URL);
   if (isPlaceholderUrl) {
     showToast('Update APP_CONFIG.SHEET_WEB_APP_URL to your deployed Google Apps Script Web App URL before submitting.', 'error');
     return;
