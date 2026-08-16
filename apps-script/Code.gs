@@ -1,6 +1,6 @@
 // 1. Added the exact ID from your provided Google Sheet URL
 const SPREADSHEET_ID = '1_3r-eRoJKzeS985_7Bc1Sruv28q1WOsRstFo_K5a2-E'; 
-const SHEET_NAME = 'Orders';
+const SHEET_NAME = 'Order management';
 
 const HEADER_ROW = [
   'Order ID', 'Customer name', 'Product', 'Size', 'Delivery address',
