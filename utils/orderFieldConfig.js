@@ -40,13 +40,13 @@
       },
       size: {
         label: 'Size',
-        type: 'number',
+        type: 'text',
         placeholder: 'Size',
         required: true,
       },
       price: {
         label: 'Price',
-        type: 'number',
+        type: 'text',
         placeholder: 'Order price',
         required: true,
       },

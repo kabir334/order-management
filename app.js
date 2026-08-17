@@ -27,8 +27,8 @@ const ORDER_FIELD_CONFIG = (typeof window !== 'undefined' && window.ORDER_FIELD_
       mobile: { label: 'Mobile', type: 'text', placeholder: 'Customer no', required: true },
       address: { label: 'Address', type: 'textarea', placeholder: 'Delivery address', required: true },
       shoeModel: { label: 'Shoe model', type: 'text', placeholder: 'Product', required: true },
-      size: { label: 'Size', type: 'number', placeholder: 'Size', required: true },
-      price: { label: 'Price', type: 'number', placeholder: 'Order price', required: true },
+      size: { label: 'Size', type: 'text', placeholder: 'Size', required: true },
+      price: { label: 'Price', type: 'text', placeholder: 'Order price', required: true },
       deliveryChargePaid: { label: 'Delivery charge paid', type: 'toggle', required: false, defaultValue: false },
       accessories: { label: 'Additional accessories', type: 'checkbox-group', required: false, options: ['Lace', 'Socks', 'Bag', 'Box'] },
       orderDate: { label: 'Order date', type: 'date', required: false, defaultValue: UTILS_GET_TODAY_ISO() },
@@ -67,8 +67,8 @@ const UTILS = {
     mobile: { label: 'Mobile', type: 'text', placeholder: 'Customer no', required: true },
     address: { label: 'Address', type: 'textarea', placeholder: 'Delivery address', required: true },
     shoeModel: { label: 'Shoe model', type: 'text', placeholder: 'Product', required: true },
-    size: { label: 'Size', type: 'number', placeholder: 'Size', required: true },
-    price: { label: 'Price', type: 'number', placeholder: 'Order price', required: true },
+    size: { label: 'Size', type: 'text', placeholder: 'Size', required: true },
+    price: { label: 'Price', type: 'text', placeholder: 'Order price', required: true },
     deliveryChargePaid: { label: 'Delivery charge paid', type: 'toggle', required: false, defaultValue: false },
     accessories: { label: 'Additional accessories', type: 'checkbox-group', required: false, options: ['Lace', 'Socks', 'Bag', 'Box'] },
     orderDate: { label: 'Order date', type: 'date', required: false, defaultValue: UTILS_GET_TODAY_ISO() },
@@ -125,11 +125,17 @@ const UTILS = {
     };
   },
 
-  normalizeSizeValue(value = '') {
+  normalizeNumericValue(value = '') {
     const raw = UTILS.normalizeText(value);
     if (!raw) return '';
-    const parsed = Number.parseInt(raw.replace(/[^0-9-]/g, ''), 10);
-    return Number.isInteger(parsed) ? parsed : raw;
+    const sanitized = raw.replace(/[^0-9.-]/g, '');
+    if (!sanitized || sanitized === '-' || sanitized === '.') return '';
+    const parsed = Number.parseInt(sanitized, 10);
+    return Number.isInteger(parsed) ? parsed : '';
+  },
+
+  normalizeSizeValue(value = '') {
+    return UTILS.normalizeNumericValue(value);
   },
 
   parseOrderMessage(message = '') {
@@ -154,7 +160,9 @@ const UTILS = {
       const fieldKey = explicitMatch ? UTILS.detectFieldKey(explicitMatch[1].toLowerCase()) : defaultFieldKey;
       const targetField = (fieldKey && UTILS.FIELD_ORDER.includes(fieldKey)) ? fieldKey : defaultFieldKey;
       const rawValue = explicitMatch ? UTILS.normalizeText(explicitMatch[2]) : line;
-      const value = targetField === 'size' ? UTILS.normalizeSizeValue(rawValue) : rawValue;
+      const value = (targetField === 'size' || targetField === 'price')
+        ? UTILS.normalizeNumericValue(rawValue)
+        : rawValue;
 
       parsed[targetField] = value;
     });
@@ -222,6 +230,8 @@ const UTILS = {
     return `${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   },
 };
+
+globalThis.UTILS = UTILS;
 
 function UTILS_GET_TODAY_ISO() {
   const date = new Date();
@@ -418,9 +428,8 @@ function collectFormValues() {
     seenFields.add(fieldKey);
 
     if (Object.prototype.hasOwnProperty.call(data, fieldKey)) {
-      if (fieldKey === 'size') {
-        const sizeValue = Number.parseInt(value.replace(/[^0-9-]/g, ''), 10);
-        value = Number.isInteger(sizeValue) ? sizeValue : '';
+      if (fieldKey === 'size' || fieldKey === 'price') {
+        value = UTILS.normalizeNumericValue(value);
       }
       data[fieldKey] = value;
     }

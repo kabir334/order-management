@@ -1,7 +1,39 @@
 const SPREADSHEET_ID = '1_3r-eRoJKzeS985_7Bc1Sruv28q1WOsRstFo_K5a2-E';
 const SHEET_NAME = 'Order management';
-const HEADER_ROW = SHEET_HEADER_ROW;
-const FIELD_MAP = SHEET_FIELD_MAP;
+const FIELD_MAP = {
+  name: 'Customer name',
+  mobile: 'Customer no',
+  address: 'Delivery address',
+  shoeModel: 'Product',
+  size: 'Size',
+  price: 'Order Price',
+  deliveryChargePaid: 'Delivery charge paid status',
+  accessories: 'Additional accessories',
+  orderDate: 'Order date'
+};
+
+const HEADER_ROW = [
+  'Order ID',
+  'Customer name',
+  'Product',
+  'Size',
+  'Delivery address',
+  'Delivery charge paid status',
+  'Order Price',
+  'Order date',
+  'Additional accessories',
+  'Package ready',
+  'Out for delivery',
+  'Order status',
+  'Delivery ID',
+  'Delivery status link',
+  'Order delivered date',
+  'Customer no',
+  'Note'
+];
+
+const SHEET_FIELD_ORDER = ['Order ID', 'Customer name', 'Product', 'Size', 'Delivery address', 'Delivery charge paid status', 'Order Price', 'Order date', 'Additional accessories', 'Customer no'];
+
 
 function doGet() {
   return jsonResponse({ success: true, message: 'Order API ready.' });
@@ -172,7 +204,7 @@ function generateOrderId(sheet) {
   
   // 3. FIXED: Prevent crash if the sheet only has headers
   if (lastRow < 2) {
-    return 'ORD-0001'; 
+    return '1'; 
   }
 
   const values = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
@@ -189,7 +221,7 @@ function generateOrderId(sheet) {
     }
   });
 
-  return `ORD-${String(highest + 1).padStart(4, '0')}`;
+  return `${String(highest + 1)}`;
 }
 
 function normalizeDate(value) {

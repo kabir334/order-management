@@ -57,22 +57,28 @@ vm.runInContext(code, sandbox);
 vm.runInContext(`const sample = ${JSON.stringify(sample)};`, sandbox, { filename: 'app.js' });
 vm.runInContext(`const overlongSample = ${JSON.stringify(overlongSample)};`, sandbox, { filename: 'app.js' });
 
+const utils = vm.runInContext('UTILS', sandbox, { filename: 'app.js' });
 const parsed = vm.runInContext('UTILS.parseOrderMessage(sample)', sandbox, { filename: 'app.js' });
 const parsedLong = vm.runInContext('UTILS.parseOrderMessage(overlongSample)', sandbox, { filename: 'app.js' });
+
+assert.strictEqual(utils.FIELD_DEFINITIONS.size.type, 'text');
+assert.strictEqual(utils.FIELD_DEFINITIONS.price.type, 'text');
 
 assert.strictEqual(parsed.name, 'John Doe');
 assert.strictEqual(parsed.mobile, 'john@example.com');
 assert.strictEqual(parsed.address, 'Acme Corporation');
 assert.strictEqual(parsed.shoeModel, 'This is a description');
 assert.strictEqual(parsed.size, 40);
-assert.strictEqual(parsed.price, '2500');
+assert.strictEqual(parsed.price, 2500);
+assert.strictEqual(typeof parsed.price, 'number');
 
 assert.strictEqual(parsedLong.name, 'John Doe');
 assert.strictEqual(parsedLong.mobile, 'john@example.com');
 assert.strictEqual(parsedLong.address, 'Acme Corporation');
 assert.strictEqual(parsedLong.shoeModel, 'This is a description');
 assert.strictEqual(parsedLong.size, 40);
-assert.strictEqual(parsedLong.price, '2500');
+assert.strictEqual(parsedLong.price, 2500);
 assert.strictEqual(typeof parsedLong.size, 'number');
+assert.strictEqual(typeof parsedLong.price, 'number');
 
 console.log('parser regression test passed');
