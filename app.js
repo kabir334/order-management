@@ -6,12 +6,52 @@ const APP_CONFIG = {
   SHEET_WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbyHCq0Wb4ADTIH1XX14dcL3Dlr8EHnwlOVxDs2Nw_RyvbFmGcTT86GW_B8Dhaud7Swc6A/exec',
 };
 
-const DEFAULT_FIELD_SEQUENCE = ['name', 'mobile', 'address', 'shoeModel', 'size', 'price'];
+const ORDER_FIELD_CONFIG = (typeof window !== 'undefined' && window.ORDER_FIELD_CONFIG)
+  || (typeof globalThis !== 'undefined' && globalThis.ORDER_FIELD_CONFIG)
+  || {
+    DEFAULT_FIELD_SEQUENCE: ['name', 'mobile', 'address', 'shoeModel', 'size', 'price'],
+    FIELD_ORDER: ['name', 'mobile', 'address', 'shoeModel', 'size', 'price'],
+    FIELD_OPTIONS: [
+      { key: 'name', label: 'Name' },
+      { key: 'mobile', label: 'Mobile' },
+      { key: 'address', label: 'Address' },
+      { key: 'shoeModel', label: 'Shoe model' },
+      { key: 'size', label: 'Size' },
+      { key: 'price', label: 'Price' },
+      { key: 'deliveryChargePaid', label: 'Delivery charge paid' },
+      { key: 'accessories', label: 'Additional accessories' },
+      { key: 'orderDate', label: 'Order date' },
+    ],
+    FIELD_DEFINITIONS: {
+      name: { label: 'Name', type: 'text', placeholder: 'Customer name', required: true },
+      mobile: { label: 'Mobile', type: 'text', placeholder: 'Customer no', required: true },
+      address: { label: 'Address', type: 'textarea', placeholder: 'Delivery address', required: true },
+      shoeModel: { label: 'Shoe model', type: 'text', placeholder: 'Product', required: true },
+      size: { label: 'Size', type: 'number', placeholder: 'Size', required: true },
+      price: { label: 'Price', type: 'number', placeholder: 'Order price', required: true },
+      deliveryChargePaid: { label: 'Delivery charge paid', type: 'toggle', required: false, defaultValue: false },
+      accessories: { label: 'Additional accessories', type: 'checkbox-group', required: false, options: ['Lace', 'Socks', 'Bag', 'Box'] },
+      orderDate: { label: 'Order date', type: 'date', required: false, defaultValue: UTILS_GET_TODAY_ISO() },
+    },
+    GOOGLE_SHEET_FIELD_MAP: {
+      name: 'Customer name',
+      mobile: 'Customer no',
+      address: 'Delivery address',
+      shoeModel: 'Product',
+      size: 'Size',
+      price: 'Order Price',
+      deliveryChargePaid: 'Delivery charge paid status',
+      accessories: 'Additional accessories',
+      orderDate: 'Order date',
+    },
+    ACCESSORY_OPTIONS: ['Lace', 'Socks', 'Bag', 'Box'],
+  };
+
+const DEFAULT_FIELD_SEQUENCE = ORDER_FIELD_CONFIG.DEFAULT_FIELD_SEQUENCE || ['name', 'mobile', 'address', 'shoeModel', 'size', 'price'];
 
 const UTILS = {
-  FIELD_ORDER: [...DEFAULT_FIELD_SEQUENCE],
-
-  FIELD_OPTIONS: [
+  FIELD_ORDER: [...(ORDER_FIELD_CONFIG.FIELD_ORDER || DEFAULT_FIELD_SEQUENCE)],
+  FIELD_OPTIONS: ORDER_FIELD_CONFIG.FIELD_OPTIONS || [
     { key: 'name', label: 'Name' },
     { key: 'mobile', label: 'Mobile' },
     { key: 'address', label: 'Address' },
@@ -22,65 +62,18 @@ const UTILS = {
     { key: 'accessories', label: 'Additional accessories' },
     { key: 'orderDate', label: 'Order date' },
   ],
-
-  FIELD_DEFINITIONS: {
-    name: {
-      label: 'Name',
-      type: 'text',
-      placeholder: 'Customer name',
-      required: true,
-    },
-    mobile: {
-      label: 'Mobile',
-      type: 'text',
-      placeholder: 'Customer no',
-      required: true,
-    },
-    address: {
-      label: 'Address',
-      type: 'textarea',
-      placeholder: 'Delivery address',
-      required: true,
-    },
-    shoeModel: {
-      label: 'Shoe model',
-      type: 'text',
-      placeholder: 'Product',
-      required: true,
-    },
-    size: {
-      label: 'Size',
-      type: 'text',
-      placeholder: 'Size',
-      required: true,
-    },
-    price: {
-      label: 'Price',
-      type: 'number',
-      placeholder: 'Order price',
-      required: true,
-    },
-    deliveryChargePaid: {
-      label: 'Delivery charge paid',
-      type: 'toggle',
-      required: false,
-      defaultValue: false,
-    },
-    accessories: {
-      label: 'Additional accessories',
-      type: 'checkbox-group',
-      required: false,
-      options: ['Lace', 'Socks', 'Bag', 'Box'],
-    },
-    orderDate: {
-      label: 'Order date',
-      type: 'date',
-      required: false,
-      defaultValue: UTILS_GET_TODAY_ISO(),
-    },
+  FIELD_DEFINITIONS: ORDER_FIELD_CONFIG.FIELD_DEFINITIONS || {
+    name: { label: 'Name', type: 'text', placeholder: 'Customer name', required: true },
+    mobile: { label: 'Mobile', type: 'text', placeholder: 'Customer no', required: true },
+    address: { label: 'Address', type: 'textarea', placeholder: 'Delivery address', required: true },
+    shoeModel: { label: 'Shoe model', type: 'text', placeholder: 'Product', required: true },
+    size: { label: 'Size', type: 'number', placeholder: 'Size', required: true },
+    price: { label: 'Price', type: 'number', placeholder: 'Order price', required: true },
+    deliveryChargePaid: { label: 'Delivery charge paid', type: 'toggle', required: false, defaultValue: false },
+    accessories: { label: 'Additional accessories', type: 'checkbox-group', required: false, options: ['Lace', 'Socks', 'Bag', 'Box'] },
+    orderDate: { label: 'Order date', type: 'date', required: false, defaultValue: UTILS_GET_TODAY_ISO() },
   },
-
-  GOOGLE_SHEET_FIELD_MAP: {
+  GOOGLE_SHEET_FIELD_MAP: ORDER_FIELD_CONFIG.GOOGLE_SHEET_FIELD_MAP || {
     name: 'Customer name',
     mobile: 'Customer no',
     address: 'Delivery address',
@@ -91,8 +84,7 @@ const UTILS = {
     accessories: 'Additional accessories',
     orderDate: 'Order date',
   },
-
-  ACCESSORY_OPTIONS: ['Lace', 'Socks', 'Bag', 'Box'],
+  ACCESSORY_OPTIONS: ORDER_FIELD_CONFIG.ACCESSORY_OPTIONS || ['Lace', 'Socks', 'Bag', 'Box'],
 
   normalizeText(value = '') {
     return String(value).trim();
@@ -133,6 +125,13 @@ const UTILS = {
     };
   },
 
+  normalizeSizeValue(value = '') {
+    const raw = UTILS.normalizeText(value);
+    if (!raw) return '';
+    const parsed = Number.parseInt(raw.replace(/[^0-9-]/g, ''), 10);
+    return Number.isInteger(parsed) ? parsed : raw;
+  },
+
   parseOrderMessage(message = '') {
     const parsed = UTILS.buildDefaultOrder();
     const sourceText = String(message || '');
@@ -146,17 +145,21 @@ const UTILS = {
       return parsed;
     }
 
-    lines.forEach((line, index) => {
+    const supportedFieldCount = UTILS.FIELD_ORDER.length;
+    const processableLines = lines.slice(0, supportedFieldCount);
+
+    processableLines.forEach((line, index) => {
       const defaultFieldKey = DEFAULT_FIELD_SEQUENCE[index % DEFAULT_FIELD_SEQUENCE.length] || 'name';
       const explicitMatch = line.match(/^([^:\n]+?)\s*[:\-]\s*(.+)$/);
       const fieldKey = explicitMatch ? UTILS.detectFieldKey(explicitMatch[1].toLowerCase()) : defaultFieldKey;
-      const value = explicitMatch ? UTILS.normalizeText(explicitMatch[2]) : line;
       const targetField = (fieldKey && UTILS.FIELD_ORDER.includes(fieldKey)) ? fieldKey : defaultFieldKey;
+      const rawValue = explicitMatch ? UTILS.normalizeText(explicitMatch[2]) : line;
+      const value = targetField === 'size' ? UTILS.normalizeSizeValue(rawValue) : rawValue;
 
       parsed[targetField] = value;
     });
 
-    state.formRows = lines.map((line, index) => ({
+    state.formRows = processableLines.map((line, index) => ({
       id: `parsed-${index}`,
       fieldKey: DEFAULT_FIELD_SEQUENCE[index % DEFAULT_FIELD_SEQUENCE.length] || 'name',
       value: line,
@@ -406,7 +409,7 @@ function collectFormValues() {
     if (!select || !editor) return;
 
     const fieldKey = select.value;
-    const value = editor.value.trim();
+    let value = editor.value.trim();
 
     if (!fieldKey) return;
     if (seenFields.has(fieldKey)) {
@@ -415,6 +418,10 @@ function collectFormValues() {
     seenFields.add(fieldKey);
 
     if (Object.prototype.hasOwnProperty.call(data, fieldKey)) {
+      if (fieldKey === 'size') {
+        const sizeValue = Number.parseInt(value.replace(/[^0-9-]/g, ''), 10);
+        value = Number.isInteger(sizeValue) ? sizeValue : '';
+      }
       data[fieldKey] = value;
     }
   });

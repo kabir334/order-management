@@ -1,21 +1,7 @@
-// 1. Added the exact ID from your provided Google Sheet URL
-const SPREADSHEET_ID = '1_3r-eRoJKzeS985_7Bc1Sruv28q1WOsRstFo_K5a2-E'; 
+const SPREADSHEET_ID = '1_3r-eRoJKzeS985_7Bc1Sruv28q1WOsRstFo_K5a2-E';
 const SHEET_NAME = 'Order management';
-
-const HEADER_ROW = [
-  'Order ID', 'Customer name', 'Product', 'Size', 'Delivery address',
-  'Delivery charge paid status', 'Order Price', 'Order date',
-  'Additional accessories', 'Package ready', 'Out for delivery',
-  'Order status', 'Delivery ID', 'Delivery status link',
-  'Order delivered date', 'Customer no', 'Note'
-];
-
-const FIELD_MAP = {
-  name: 'Customer name', mobile: 'Customer no', address: 'Delivery address',
-  shoeModel: 'Product', size: 'Size', price: 'Order Price',
-  deliveryChargePaid: 'Delivery charge paid status',
-  accessories: 'Additional accessories', orderDate: 'Order date'
-};
+const HEADER_ROW = SHEET_HEADER_ROW;
+const FIELD_MAP = SHEET_FIELD_MAP;
 
 function doGet() {
   return jsonResponse({ success: true, message: 'Order API ready.' });
@@ -106,17 +92,18 @@ function getOrCreateOrdersSheet() {
 
   if (sheet.getLastRow() === 0) {
     sheet.appendRow(HEADER_ROW);
-  } else {
-    const firstRow = sheet.getRange(1, 1, 1, HEADER_ROW.length).getValues()[0];
-    const currentHeader = firstRow.map((value) => String(value).trim());
-    const missingColumns = HEADER_ROW.filter((header) => !currentHeader.includes(header));
+    return sheet;
+  }
 
-    if (missingColumns.length > 0) {
-      const nextColumn = sheet.getLastColumn() + 1;
-      missingColumns.forEach((header, index) => {
-        sheet.getRange(1, nextColumn + index).setValue(header);
-      });
-    }
+  const firstRow = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), HEADER_ROW.length)).getValues()[0] || [];
+  const currentHeader = firstRow.map((value) => String(value || '').trim().toLowerCase());
+  const missingColumns = HEADER_ROW.filter((header) => !currentHeader.includes(String(header).trim().toLowerCase()));
+
+  if (missingColumns.length > 0) {
+    const nextColumn = sheet.getLastColumn() + 1;
+    missingColumns.forEach((header, index) => {
+      sheet.getRange(1, nextColumn + index).setValue(header);
+    });
   }
 
   return sheet;
